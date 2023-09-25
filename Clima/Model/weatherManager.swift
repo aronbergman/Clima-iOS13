@@ -9,7 +9,8 @@
 import Foundation
 
 protocol WeatherManagerDelegate {
-    func didUpdateWeather(weather: WeatherModel)
+    func didUpdateWeather  (_ weatherManager: WeatherManager, weather: WeatherModel)
+    func didFailWithError(error: Error)
 }
 
 struct WeatherManager {
@@ -20,12 +21,12 @@ struct WeatherManager {
         let urlForFetch = "https://api.openweathermap.org/data/2.5/weather?q=\(city)&appid=\(apiKey)"
         
         
-        performRequest(urlString: urlForFetch)
+        performRequest(with: urlForFetch)
     }
     
     var delegate: WeatherManagerDelegate?
     
-    func performRequest(urlString: String) {
+    func performRequest(with urlString: String) {
         // 1. Create URL
         if let url = URL(string: urlString) {
             // 2. Create session with configuration
@@ -33,16 +34,17 @@ struct WeatherManager {
             // 3. Give the session a task
             let task = session.dataTask(with: url) {(data, response, error) in
                 if error != nil {
+                    self.delegate?.didFailWithError(error: error!)
                     print("❌: \(error!)")
                     return
                 }
                 
                 if let safeData = data {
-                    if let weather = self.parseJSON(weatherData: safeData) {
+                    if let weather = self.parseJSON(safeData) {
 //                        let weatherVC = WeatherViewController()
 //                        weatherVC.didUpdateWeather(weather: weather)
                         
-                        delegate?.didUpdateWeather(weather: weather)
+                        delegate?.didUpdateWeather(self, weather: weather)
                     }
                 }
             }
@@ -51,7 +53,7 @@ struct WeatherManager {
         }
     }
     
-    func parseJSON(weatherData: Data) -> WeatherModel? {
+    func parseJSON(_ weatherData: Data) -> WeatherModel? {
         let decoder = JSONDecoder()
         do {
             let decoderData = try decoder.decode(WeatherData.self, from: weatherData)
@@ -64,7 +66,7 @@ struct WeatherManager {
      return weather
             
         } catch {
-            print(error)
+            self.delegate?.didFailWithError(error: error)
             return nil
         }
     }
